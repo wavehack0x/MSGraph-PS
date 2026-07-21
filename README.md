@@ -1,20 +1,29 @@
-# MSGraph-PS
-A collection of Microsoft Graph PowerShell scripts, automation projects, and learning examples for Microsoft 365, Entra ID, SharePoint, OneDrive, and Azure.
+# MSGraph-Lab
 
-# Scripts
-1. GetDriveId-ParentId.ps1
-    Retrieves the SharePoint Drive ID and Parent Folder ID required for uploading files.
+A collection of scripts and experiments while learning Microsoft Graph and building practical Microsoft 365 automation.
 
-2. UploadToSharePoint.ps1
-    Uploads a local file to a specified SharePoint folder using the Drive ID and Parent Folder ID obtained from the first script.
+Mostly PowerShell scripts created from day-to-day work, testing, and learning around Microsoft Graph, Entra ID, SharePoint, and Microsoft 365 administration. Some scripts are simple examples, while others are built to solve specific automation tasks.
 
-# Prerequisites
-- Microsoft Graph PowerShell SDK
-- SharePoint site access
-- Microsoft Graph permissions:
-    - Sites.ReadWrite.All
-    - Files.ReadWrite.All
+Nothing here is guaranteed to work perfectly in your environment — always review the script, understand the permissions required, and test before using it in production.
 
-# How to Connect to Microsoft Graph
-  Connect-MgGraph -Scopes "Sites.ReadWrite.All","Files.ReadWrite.All"
+## ⚠️ Before you use anything here
 
+- These scripts are created for learning and testing purposes. You may need to modify them for your own environment.
+- Review the code before running and always test in a non-production environment first.
+
+**Disclaimer**: Use at your own risk. If something breaks, please don't blame the script, your laptop, the cloud, or the coffee you had while running it. 😄
+
+## Requirements
+
+Depending on the script, you may need:
+
+- [Microsoft Graph PowerShell SDK](https://learn.microsoft.com/powershell/microsoftgraph/installation)
+- Microsoft 365 / Entra ID administrative access depending on the task.
+
+Check each script's comments and README section for specific requirements.
+
+## Feedback
+
+This repository is mainly for documenting my Microsoft Graph learning journey and sharing useful scripts.
+
+If you find something broken, have suggestions, or spot a better way to approach something, feel free to open an issue or share feedback.
