@@ -27,9 +27,9 @@ if (-not (Get-Module -ListAvailable Microsoft.Graph)) {
 # Configuration
 # ===========================================
 
-$tenantHost = "firmussec.sharepoint.com"
-$sitePath   = "/sites/TestUpload"
-$folderName = "Evidence" 
+$tenantHost = "contosso.sharepoint.com"
+$sitePath   = "/sites/SampleSite"
+$folderName = "SampleFolder" 
 
 
 # ===========================================
