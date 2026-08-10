@@ -395,4 +395,3 @@ ignored.
 | A guest looks "inactive" but you know they're active | Confirm the Premium license is active tenant-wide |
 
 ---
-*FIRMUS INTERNAL*
