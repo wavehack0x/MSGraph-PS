@@ -1,7 +1,16 @@
+# ===========================================
+# Get-GuestUserDetails
+# ===========================================
+# Purpose     : Azure AD / Entra ID Guest User Clean-Up Utility
+# Description : Audits external guest access and generates a summary Excel report
+#               (GuestUserReview_YYYY-MM-DD.xlsx) categorizing guest users by:
+#                 - Inactive >180 Days
+#                 - Accepted Never Signed In
+#                 - Pending Invitations (>90 Days / Total)
+#                 - Recent Invitations (<30 Days)
 # Requires:
 # Install-Module Microsoft.Graph -Scope CurrentUser
 # Install-Module ImportExcel -Scope CurrentUser
-
 
 # ===========================================
 # Prerequisite Checks
