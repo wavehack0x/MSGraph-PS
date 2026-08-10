@@ -194,4 +194,3 @@ columns: `UserPrincipalName`, `DisplayName`, `UserType`, `MatchReason`,
   force-delete a guest that does not meet the inactivity rules.
 
 ---
-*FIRMUS INTERNAL*
