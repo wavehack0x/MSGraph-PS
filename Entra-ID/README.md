@@ -14,12 +14,12 @@ to the one you need, or read start to finish for the full picture.
 |---|---|---|
 | [`Get-GuestUserDetails.ps1`](#1-get-guestuserdetailsps1) | Full Excel review report, all guests, 6 categories | No (read-only) |
 | [`Get-And-Remove-GuestUsers.ps1`](#2-get-and-remove-guestusersps1) | Criteria-based txt report + optional delete | Only with `-Delete` |
-| [`Restore-DeletedGuestUsers.ps1`](#3-restore-deletedguestusersps1) | Recover soft-deleted guests by email or Object ID | Yes (restores) |
+| [`Restore-GuestUsers.ps1`](#3-restore-guestusersps1) | Recover soft-deleted guests by email or Object ID | Yes (restores) |
 
 **Recommended workflow:** review with `Get-GuestUserDetails.ps1` →
 decide on thresholds → clean up with `Get-And-Remove-GuestUsers.ps1
 -Delete` → if something was removed by mistake, recover within 30 days
-with `Restore-DeletedGuestUsers.ps1`.
+with `Restore-GuestUsers.ps1`.
 
 ---
 
@@ -135,10 +135,6 @@ sign-in fields return empty, and every guest may falsely appear
 | `User.ReadWrite.All` | Read guest profiles, and delete them if `-Delete` is used |
 | `AuditLog.Read.All` | Read `SignInActivity` for the inactivity check and text report |
 
-> Note: Microsoft Graph doesn't have a standalone `User.Write` scope —
-> the script requests one combined scope, `User.ReadWrite.All`, which
-> covers both reading and writing/deleting guest profiles.
-
 **Entra ID Directory Role:** the signed-in account also needs one of:
 - **User Administrator**
 - **Global Administrator**
@@ -238,39 +234,43 @@ MatchReason        : Inactive > 180 days (last sign-in: )
 
 ---
 
-## 3. Restore-DeletedGuestUsers.ps1
+## 3. Restore-GuestUsers.ps1
 
 ### Objective
 
-Recovers guest accounts that were soft-deleted by
-`Get-And-Remove-GuestUsers.ps1`, `Remove-StaleGuestUsers_v3.ps1`, or
-`Remove-BulkGuestUsers.ps1`, within Entra ID's 30-day recovery window.
-Since `Restore-MgDirectoryDeletedItem` requires the deleted object's
-GUID (not an email or UPN), this script looks that GUID up for you from
-a supplied email address, then restores it — individually or in bulk.
+To recover Microsoft Entra ID guest accounts that were soft-deleted by
+any of the guest-cleanup scripts in this toolkit, within the 30-day
+recovery window. `Restore-MgDirectoryDeletedItem` requires the deleted
+object's GUID, not an email or UPN — this script looks that GUID up for
+you from a supplied email address, then restores it, individually or in
+bulk.
 
 ### How It Works
 
 1. **Connects to Microsoft Graph:** Reuses an existing session if
-   already signed in.
-2. **Determines what to restore** via one of three paths:
+   you're already signed in.
+2. **Determines what to restore**, via whichever of these you provide:
    - `-ObjectId <guid>` — restores directly, no lookup needed.
    - `-Email <address>` — looks up that one guest in the recycle bin.
    - `-EmailListPath <file>` — bulk mode, one email per line.
-   - No parameters — interactive prompt asks which mode you want.
-3. **Looks up the deleted user's GUID:** pulls the full deleted-items
-   list once via `Get-MgDirectoryDeletedItemAsUser`, then searches it
-   using a wildcard/contains match against `Mail` and
-   `UserPrincipalName` — not an exact match, since Entra ID can alter a
-   guest's UPN/email on deletion (e.g. appending a random string or
-   timestamp) to free the original address for reuse.
+   - **None of the above** — prompts interactively, asking whether you
+     want single-email or list-file mode.
+3. **Looks up the deleted user's GUID:** retrieves the entire deleted-
+   items list once (`Get-MgDirectoryDeletedItemAsUser -All`), then
+   searches it in memory using a **wildcard/contains match** — not an
+   exact match — against both `Mail` and `UserPrincipalName`. This is
+   deliberate: Entra ID can alter a guest's UPN or email on deletion
+   (e.g. appending a random string or timestamp) to free the original
+   address for reuse, so an exact match could miss the record entirely.
 4. **Handles multiple matches:** if more than one deleted record
-   matches, shows all candidates (display name, UPN, deletion date) and
-   asks which one to restore.
-5. **Confirms before restoring:** shows the full list of matched
-   guests and asks for `Y/N` confirmation, unless `-Force` is passed.
+   matches an email, every candidate is listed (display name, UPN,
+   deletion date, GUID) and you're asked which one to restore, or
+   whether to skip it.
+5. **Confirms before restoring:** the full list of matched guests is
+   shown, and you're asked for a `Y/N` confirmation before anything is
+   actually restored — unless `-Force` is passed.
 6. **Restores and reports:** calls `Restore-MgDirectoryDeletedItem` for
-   each confirmed match and writes a CSV report.
+   each confirmed match, then writes a CSV report of the outcome.
 
 ### Requirements
 
@@ -279,45 +279,67 @@ Install-Module Microsoft.Graph.Users -Scope CurrentUser
 Install-Module Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser
 ```
 
-### Permissions
+
+### Required Permissions
+
+**Graph API Scope:**
 
 | Scope | Purpose |
 |---|---|
-| `User.ReadWrite.All` (or `Directory.AccessAsUser.All`) | List deleted users, restore them |
+| `User.ReadWrite.All` | List deleted users, restore them |
 
-**Entra ID Directory Role:** **User Administrator** or **Global
-Administrator** — same requirement as the removal scripts.
+**Entra ID Directory Role:** the signed-in account also needs one of:
+- **User Administrator**
+- **Global Administrator**
+
+*(Having the scope alone is not enough — without one of these roles,
+the restore call will fail with a permission error even though sign-in
+and scope consent succeed.)*
 
 **Time limit:** deleted users are only recoverable for **30 days**
-after removal. After that, Entra ID permanently deletes them and no
-tool — this script included — can recover them.
+after removal. After that window, Entra ID permanently deletes them and
+no tool — this script included — can bring them back.
 
-### Usage Examples
+## Usage Examples
 
-**Restore a single guest by email** (looks up the GUID for you):
+**Restore a single guest by email** (the script looks up the GUID for
+you):
 ```powershell
-.\Restore-DeletedGuestUsers.ps1 -Email "alice@external.com"
+.\Restore-guest.ps1 -Email "alice@external.com"
 ```
 
-**Restore directly if you already know the Object ID:**
+**Restore directly if you already know the Object ID** (skips the
+lookup entirely):
 ```powershell
-.\Restore-DeletedGuestUsers.ps1 -ObjectId "a9532b30-4edb-4b66-a3b0-6ac972a6065b"
+.\Restore-guest.ps1 -ObjectId "a9532b30-4edb-4b66-a3b0-6ac972a6065b"
 ```
 
 **Bulk restore from a text file of emails, one per line:**
 ```powershell
-.\Restore-DeletedGuestUsers.ps1 -EmailListPath "C:\Temp\restore-list.txt"
+.\Restore-guest.ps1 -EmailListPath "C:\Temp\restore-list.txt"
 ```
 
 **No parameters — interactive prompt:**
 ```powershell
-.\Restore-DeletedGuestUsers.ps1
+.\Restore-guest.ps1
 ```
+Asks whether you want to restore a single email or a list from a file,
+then walks you through it.
 
-**Skip the confirmation prompt (unattended use):**
+**Skip the confirmation prompt (unattended/automated use):**
 ```powershell
-.\Restore-DeletedGuestUsers.ps1 -EmailListPath "C:\Temp\restore-list.txt" -Force
+.\Restore-guest.ps1 -EmailListPath "C:\Temp\restore-list.txt" -Force
 ```
+`-Force` also makes the script exit immediately instead of pausing for
+a keypress at the end — required for it to work in a truly unattended
+context (Azure Automation, Power Automate, Task Scheduler).
+
+> **Note on Automation:** Like the other scripts in this toolkit, this
+> one uses interactive `Connect-MgGraph` sign-in by default. For a
+> truly unattended scheduled run, authentication needs to be switched
+> to app-only (certificate or client secret) — `-Force` alone only
+> removes the confirmation/pause prompts, it does not change how the
+> script authenticates.
 
 ### Parameters
 
@@ -326,39 +348,60 @@ tool — this script included — can recover them.
 | `-Email` | *(none)* | A single email address to look up and restore. |
 | `-ObjectId` | *(none)* | Restore directly by known GUID, skipping the lookup. |
 | `-EmailListPath` | *(none)* | Path to a `.txt` file of emails, one per line, for bulk restore. |
-| `-ReportPath` | `GuestRestore_Report_<timestamp>.csv` | Where the restore CSV report is written. |
-| `-Force` | *(off)* | Skip the `Y/N` confirmation prompt. |
+| `-ReportPath` | `GuestRestore_Report_<timestamp>.csv` (script folder) | Where the restore CSV report is written. |
+| `-Force` | *(off)* | Skip the `Y/N` confirmation prompt, and skip the final "press any key" pause. |
 
 If none of `-Email`, `-ObjectId`, or `-EmailListPath` are supplied, the
-script prompts interactively for single-email or list-file mode.
+script falls back to an interactive prompt.
+
+### Input File Format
+
+Same convention as the rest of the toolkit — one email/UPN per line, no
+header, no commas or quotes, blank lines ignored:
+```
+alice@external.com
+bob@partnercompany.com
+carol@vendor.org
+```
 
 ### Output
 
-**`GuestRestore_Report_<timestamp>.csv`** — columns: `Input`,
-`ObjectId`, `Status`, `Message`, `Date`.
+**`GuestRestore_Report_<timestamp>.csv`** — one row per processed
+input, columns: `Input`, `ObjectId`, `Status`, `Message`, `Date`.
 
 **Status Definitions:**
 - **Success:** Guest restored successfully.
-- **Failed:** Restore attempt failed — see `Message` (e.g. permission
-  denied, outside recovery window).
-- **NotFound:** No matching deleted user found for that email — likely
-  outside the 30-day window, already restored, or the identifiers
-  genuinely don't match.
-- **Skipped:** Multiple deleted records matched the email and none was
-  selected.
+- **Failed:** Restore attempt failed — see `Message` for the specific
+  error (e.g. permission denied, outside the recovery window).
+- **NotFound:** No matching deleted user found for that email — most
+  likely outside the 30-day window, already restored, or the record
+  genuinely doesn't match anything in the recycle bin.
+- **Skipped:** Multiple deleted records matched the email, and none
+  was selected for restore.
 
 ### Safety Notes
 
-- **Matching is intentionally loose** (contains/wildcard, not exact) to
-  account for Entra ID altering UPNs/emails on deletion — but every
-  match is shown to you before anything is restored, so a broader match
-  doesn't reduce safety, it just widens what gets surfaced for review.
-- **Empty input is explicitly rejected**, not silently accepted — an
-  unguarded blank search value would otherwise match every deleted user
-  in the tenant via wildcard matching.
-- All interactive prompts (mode selection, email entry, match
-  selection, Y/N confirmation) re-prompt on invalid input rather than
-  silently cancelling or proceeding on a typo.
+- **Matching is intentionally broad** (wildcard/contains, not exact),
+  to account for Entra ID mangling UPNs/emails on deletion. This does
+  not reduce safety — every match, single or multiple, is shown to you
+  before anything is restored, so a broader match just means more
+  candidates surfaced for your review, not more risk of an unreviewed
+  restore.
+- **Empty input is explicitly rejected, not silently accepted.** An
+  unguarded blank search value would otherwise turn into a wildcard
+  that matches *every* deleted user in the tenant. This is enforced
+  inside the lookup function itself, so it protects every entry point
+  (interactive prompt, `-Email` passed directly, or a blank line in an
+  `-EmailListPath` file) — not just one of them.
+- **All interactive prompts validate their input and re-prompt on a
+  mistake** — mode selection, email entry, match selection, and the
+  Y/N confirmation all loop until given a valid answer, rather than
+  silently cancelling the whole run or discarding a candidate on a
+  typo.
+- Restoring a guest does not restore their original group
+  memberships, app assignments, or other resource access automatically
+  in every case — review the restored account's access afterward
+  rather than assuming it's identical to before deletion.
 
 ---
 
