@@ -305,30 +305,30 @@ no tool — this script included — can bring them back.
 **Restore a single guest by email** (the script looks up the GUID for
 you):
 ```powershell
-.\Restore-guest.ps1 -Email "alice@external.com"
+.\Restore-guestusers.ps1 -Email "alice@external.com"
 ```
 
 **Restore directly if you already know the Object ID** (skips the
 lookup entirely):
 ```powershell
-.\Restore-guest.ps1 -ObjectId "a9532b30-4edb-4b66-a3b0-6ac972a6065b"
+.\Restore-guestusers.ps1 -ObjectId "a9532b30-4edb-4b66-a3b0-6ac972a6065b"
 ```
 
 **Bulk restore from a text file of emails, one per line:**
 ```powershell
-.\Restore-guest.ps1 -EmailListPath "C:\Temp\restore-list.txt"
+.\Restore-guestusers.ps1 -EmailListPath "C:\Temp\restore-list.txt"
 ```
 
 **No parameters — interactive prompt:**
 ```powershell
-.\Restore-guest.ps1
+.\Restore-guestusers.ps1
 ```
 Asks whether you want to restore a single email or a list from a file,
 then walks you through it.
 
 **Skip the confirmation prompt (unattended/automated use):**
 ```powershell
-.\Restore-guest.ps1 -EmailListPath "C:\Temp\restore-list.txt" -Force
+.\Restore-guestusers.ps1 -EmailListPath "C:\Temp\restore-list.txt" -Force
 ```
 `-Force` also makes the script exit immediately instead of pausing for
 a keypress at the end — required for it to work in a truly unattended
